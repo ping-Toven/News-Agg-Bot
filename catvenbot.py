@@ -1,5 +1,6 @@
 from venv import create
 import discord
+import tweepy
 import logging
 import os
 import sqlite3
@@ -8,16 +9,25 @@ from dotenv import load_dotenv
 from setuptools import setup
 
 load_dotenv()
+#set up logging module for pycord
 logger = logging.getLogger('discord')
 logger.setLevel(logging.INFO)
 handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
+#Set db name var, init discord bot, init db connection
 RSS_database = "RSS_Feeds.db"
-testBot = discord.Bot()
+Twitter_database = "Twitter_Feeds.db"
+catvenBot = discord.Bot()
 RSS_conn = sqlite3.connect(RSS_database)
+Twitter_conn = sqlite3.connect(Twitter_database)
 
-#Function to create the tables & set cursor
+
+#
+#SQLite DB Helper functions
+#
+
+#Function to create the tables
 def create_table(conn, create_table_sql):
     """ create a table from the create_table_sql statement
     :param conn: Connection object
@@ -31,48 +41,56 @@ def create_table(conn, create_table_sql):
     except Error as e:
         print(e)
 
-#Function to setup a guild with a specific channel for RSS Feed posts
-def db_setup_guild_channel(guild_id, channel_id):
+#Function to setup a guild with a specific channel id for a feed (RSS & Twitter separate dbs / channels)
+def db_setup_guild_channel(conn, guild_id:str, channel_id:str):
     """ add a guild_id:channel_id row in db
-    :param guild_id: Guild ID
-    :param channel_id: Channel ID 
+    :param conn: Connection object
+    :param guild_id: Guild ID str
+    :param channel_id: Channel ID str
     :return:
     """
     try:
-        cursor = RSS_conn.cursor()
-        #if false, insert new row
-        if not setup_check(guild_id):
-            cursor.execute("INSERT INTO RSS_Feeds (guild_id, channel_id) VALUES (?,?)", [guild_id, channel_id])
-            RSS_conn.commit()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        table_name = str(cursor.fetchone()[0])
+        #if setup has not happened, insert new row
+        if not setup_check(conn, guild_id):
+            cursor.execute("INSERT INTO {} (guild_id, channel_id) VALUES (?,?)".format(table_name), [guild_id, channel_id])
+            conn.commit()
         #else update existing
         else:
-            cursor.execute("UPDATE RSS_Feeds SET channel_id=:cid WHERE guild_id=:gid", {"cid":channel_id, "gid":guild_id})
-            RSS_conn.commit()
+            cursor.execute("UPDATE {} SET channel_id = (?) WHERE guild_id = (?)".format(table_name), [channel_id, guild_id])
+            conn.commit()        
     except sqlite3.Error as error:
         print("Failed to setup guild's channel. Error: ", error)
 
-def get_feed_channel(guild_id):
-    """ fetch feed channel from guild
-    :param guild_id: Guild ID
+def get_posting_channel(conn, guild_id:str):
+    """ fetch posting channel from guild
+    :param guild_id: Guild ID str
     :return str: Error or feed channel id
     """
-    cursor = RSS_conn.cursor()
-    if not setup_check(guild_id):
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    table_name = str(cursor.fetchone()[0])
+    #if setup has not happened, abort
+    if not setup_check(conn, guild_id):
         return 
     else:
-        cursor.execute("SELECT channel_id FROM RSS_Feeds WHERE guild_id=?",[guild_id])
+        cursor.execute("SELECT channel_id FROM {} WHERE guild_id=(?)".format(table_name),[guild_id])
         feed_channel_id = str(cursor.fetchone()[0])
         return feed_channel_id
 
 #Function to check if guild has been set up in DB
-def setup_check(gid):
+def setup_check(conn, gid:str):
     """ Check for the guild_id in the DB
     :param gid: command's ctx guild id
-    :return bool:
+    :return bool: True = guild has been set up in this DB, False = not set up
     """
-    cursor = RSS_conn.cursor()
-    cursor.execute("SELECT guild_id FROM RSS_Feeds WHERE guild_id = (?)", [gid])
-    #SQL statement will return guild_id as provided by command if the server is set up. Otherwise returns None
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    table_name = str(cursor.fetchone()[0])
+    cursor.execute("SELECT guild_id FROM {} WHERE guild_id = (?)".format(table_name), [gid])
+    #SQL statement will return guild_id as provided by command if the DBs are set up. Otherwise returns None
     if cursor.fetchone() is None:
         return False
     else:
@@ -95,15 +113,13 @@ def feed_check(feed_url):
 #Function to add an RSS Feed url to the guild's DB
 def db_add_feed(RSS_url, guild_id):
     """ add a feed URL from slash command to the db
-    :param conn: Connection object
     :param feed_url: RSS feed url submitted by user in command "add"
     :param guild_id: Guild ID
-    :param channel_id: Channel ID
-    :return str: one of the 3 statuses
+    :return str: one of the 2 statuses
     """
     existing_feed = "Feed already added"
     successful = "RSS Feed added successfully"
-    feed_channel_id = get_feed_channel(guild_id)
+    feed_channel_id = get_posting_channel(RSS_conn, guild_id)
     cursor = RSS_conn.cursor()
     if feed_check(RSS_url):
         return existing_feed
@@ -112,78 +128,129 @@ def db_add_feed(RSS_url, guild_id):
         RSS_conn.commit()
         return successful
 
+#Function to remove an existing RSS Feed url from guild's DB
+def db_remove_feed(RSS_url:str, guild_id:str):
+    """ remove an existing feed URL from guild specific DB entries
+    :param feed_url: RSS feed url submitted by user in command (str)
+    :param guild_id: Guild ID (str)
+    :return str: one of the 2 statuses
+    """
+    unknown_feed = "Feed does not exist"
+    successful = "RSS Feed removed successfully"
+    cursor = RSS_conn.cursor()
+    if not feed_check(RSS_url):
+        return unknown_feed
+    else:
+        cursor.execute("DELETE FROM RSS_Feeds WHERE feed_url = (?) AND guild_id = (?)", [RSS_url, guild_id])
+        RSS_conn.commit()
+        return successful
 
+#
+#Basic bot event listeners below
+#
 
 #Write to terminal on login
-@testBot.event
+@catvenBot.event
 async def on_ready():
-    print(f'Logged on as {testBot.user}!')
+    print(f'Logged on as {catvenBot.user}!')
 
 #Write to terminal on disconnect
-@testBot.event
+@catvenBot.event
 async def on_disconnect():
     #RSS_conn.close()
-    print(f'Disconnected as {testBot.user} & closed DB connection')
+    print(f'Disconnected as {catvenBot.user} & closed DB connection')
 
 #Slash command template
-@testBot.slash_command(name = "hello", description = "Say hello to the bot")
+@catvenBot.slash_command(name = "hello", description = "Say hello to the bot")
 async def hello(ctx):
     await ctx.respond("Hey!")
 
+#
+#RSS RELATED COMMANDS BELOW 
+#
+
 #Add RSS feed command
-@testBot.slash_command(name = "add_rss", description = "Add an RSS feed to the bot's watchlist.")
+@catvenBot.slash_command(name = "add_rss", description = "Add an RSS feed to the bot's watchlist.")
 async def add_rss(ctx, feed_url: str): 
     guild_id = str(ctx.guild.id)
     #if false prompt user to run /setup command
-    if not setup_check(guild_id):
+    if not setup_check(RSS_conn, guild_id):
         await ctx.respond("Please make sure to run the /setup command")
         return
-    channel = ctx.channel
+    channel = get_posting_channel(RSS_conn, guild_id)
+    channel_mention = "<#" + channel + ">"
     status = db_add_feed(feed_url, guild_id)
-    await ctx.respond(status + f" in {channel.mention}")
+    await ctx.respond(status + f" in {channel_mention}")
 
 #Remove RSS feed command
-@testBot.slash_command(name = "remove_rss", description = "Remove an RSS feed from the bot's watchlist.")
-async def remove_rss(ctx, feed_url: str): 
-    ...
+@catvenBot.slash_command(name = "remove_rss", description = "Remove an RSS feed from the bot's watchlist.")
+async def remove_rss(ctx, feed_url: str):
+    guild_id = str(ctx.guild.id)
+    #if false prompt user to run /setup command
+    if not setup_check(RSS_conn, guild_id):
+        await ctx.respond("Please make sure to run the /setup command")
+        return
+    channel = get_posting_channel(RSS_conn, guild_id)
+    channel_mention = "<#" + channel + ">"
+    status = db_remove_feed(feed_url, guild_id)
+    await ctx.respond(status + f" in {channel_mention}")
 
 #Setup channel for RSS feed command
-@testBot.slash_command(name = "setup_rss", description = "Set up the bot's RSS feeds by selecting a channel to post in")
+@catvenBot.slash_command(name = "setup_rss", description = "Set up the bot's RSS feeds by selecting a channel to post in")
 async def setup_rss(ctx, channel: discord.TextChannel): 
     setup_guild_id = str(ctx.guild.id)
     setup_channel_id = str(channel.id)
-    db_setup_guild_channel(guild_id=setup_guild_id, channel_id=setup_channel_id)
+    db_setup_guild_channel(conn = RSS_conn, guild_id=setup_guild_id, channel_id=setup_channel_id)
     await ctx.respond(f"Succesfully set {channel.mention} as the RSS feed channel")
 
 #Check RSS feed setup info command
-@testBot.slash_command(name = "info", description = "View the bot's configs for your RSS feeds")
-async def info(ctx):
+@catvenBot.slash_command(name = "info_rss", description = "View the bot's configs for your RSS feeds")
+async def info_rss(ctx):
     cursor = RSS_conn.cursor()
     guild_id = str(ctx.guild.id)
     guild = ctx.guild
     try:
         #if false prompt user to run /setup command
-        if not setup_check(guild_id):
+        if not setup_check(RSS_conn, guild_id):
             await ctx.respond("Please make sure to run the /setup command")
         #else list information regarding channel config
         else:
-            cursor.execute("SELECT channel_id FROM RSS_Feeds WHERE guild_id=:gid", {"gid":guild_id})
-            feed_channel_id = str(cursor.fetchone()[0])
-            feed_channel_mention = "<#" + feed_channel_id + ">"
-            await ctx.respond(f"{guild}'s RSS Feed channel is set to {feed_channel_mention}")
+            channel = get_posting_channel(RSS_conn, guild_id)
+            channel_mention = "<#" + channel + ">"
+            await ctx.respond(f"{guild}'s RSS Feed channel is set to {channel_mention}")
+            #cursor.execute("SELECT feed_url FROM RSS_Feeds WHERE guild_id=(?)", [guild_id])
     except sqlite3.Error as error:
         print("info command error: " , error)
         await ctx.respond("Please make sure to run the /setup command")
 
+#
+#TWITTER RELATED COMMANDS BELOW 
+#
+
+#Slash command template
+@catvenBot.slash_command(name = "add_twitter", description = "add a twitter username to your feed list")
+async def add_twitter(ctx, username:str):
+    
+    await ctx.respond("Hey!")
+
+#Setup channel for Twitter feed command
+@catvenBot.slash_command(name = "setup_twt", description = "Set up the bot's Twitter feeds by selecting a channel to post in")
+async def setup_twt(ctx, channel: discord.TextChannel): 
+    setup_guild_id = str(ctx.guild.id)
+    setup_channel_id = str(channel.id)
+    db_setup_guild_channel(guild_id=setup_guild_id, channel_id=setup_channel_id)
+    await ctx.respond(f"Succesfully set {channel.mention} as the RSS feed channel")
+
 def main():
     sql_create_feeds_table = "CREATE TABLE IF NOT EXISTS RSS_Feeds (guild_id string, channel_id string, feed_url string);"
-
+    sql_create_twitter_list_table = "CREATE TABLE IF NOT EXISTS Twitter_Feeds (guild_id string, channel_id string, usernames);"
     if RSS_conn is not None:
         create_table(conn = RSS_conn, create_table_sql = sql_create_feeds_table)
+        create_table(conn = Twitter_conn, create_table_sql =sql_create_twitter_list_table)
     else:
         print("Error: Cannot create the DB connection")
 
-    testBot.run(os.getenv('TOKEN'))
-
+    catvenBot.run(os.getenv('TOKEN'))
+    client = tweepy.Client(os.getenv('B_TOKEN'))
 if __name__ == '__main__':
     main()
