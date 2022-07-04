@@ -51,13 +51,11 @@ def db_setup_guild_channel(guild_id, channel_id):
     try:
         cursor = RSS_conn.cursor()
         cursor.execute("SELECT guild_id FROM RSS_Feeds WHERE guild_id = (?)", [guild_id])
-        print(cursor.fetchone())
-        if cursor.fetchone() is not None:
-            db_guild = str(cursor.fetchone()[0])
-            while db_guild is not guild_id:
+        if cursor.fetchone() is None:
                 cursor.execute("INSERT INTO RSS_Feeds (guild_id, channel_id) VALUES (?,?)", [guild_id, channel_id])
                 RSS_conn.commit()
-            cursor.execute("UPDATE RSSFeeds SET channel_id=:cid WHERE guild_id=:gid", {"cid":channel_id, "gid":guild_id})
+        else:
+            cursor.execute("UPDATE RSS_Feeds SET channel_id=:cid WHERE guild_id=:gid", {"cid":channel_id, "gid":guild_id})
             RSS_conn.commit()
     except sqlite3.Error as error:
         print("Failed to setup guild's channel. Error: ", error)
@@ -70,8 +68,8 @@ async def on_ready():
 #Write to terminal on disconnect
 @testBot.event
 async def on_disconnect():
-    RSS_conn.close()
-    print(f'Disconnected on as {testBot.user} & closed DB connection')
+    #RSS_conn.close()
+    print(f'Disconnected as {testBot.user} & closed DB connection')
 
 #Slash command template
 @testBot.slash_command(name = "hello", description = "Say hello to the bot")
@@ -89,8 +87,8 @@ async def add(ctx, feed_url: str):
     ...
 
 #Setup channel for RSS feed command
-@testBot.slash_command(name = "setup", description = "Set up the bot by selecting a channel to post in")
-async def setup(ctx, channel: discord.TextChannel): 
+@testBot.slash_command(name = "setup_rss", description = "Set up the bot's RSS feeds by selecting a channel to post in")
+async def setup_rss(ctx, channel: discord.TextChannel): 
     setup_guild_id = str(ctx.guild.id)
     setup_channel_id = str(channel.id)
     db_setup_guild_channel(guild_id=setup_guild_id, channel_id=setup_channel_id)
@@ -101,16 +99,19 @@ async def setup(ctx, channel: discord.TextChannel):
 async def info(ctx):
     cursor = RSS_conn.cursor()
     guild_id = str(ctx.guild.id)
+    guild = ctx.guild
     try:
-        cursor.execute("SELECT channel_id FROM RSS_Feeds WHERE guild_id=:gid", {"gid":guild_id})
-        print(cursor.fetchone())
-        feed_channel_id = str(cursor.fetchone()[0])
-        feed_channel_mention = "<#" + feed_channel_id + ">"
-        guild = ctx.guild
-        await ctx.respond(f"{guild}'s RSS Feed channel is set to {feed_channel_mention}")
+        cursor.execute("SELECT guild_id FROM RSS_Feeds WHERE guild_id = (?)", [guild_id])
+        if cursor.fetchone() is None:
+            await ctx.respond("Please make sure to run the /setup command")
+        else:
+            cursor.execute("SELECT channel_id FROM RSS_Feeds WHERE guild_id=:gid", {"gid":guild_id})
+            feed_channel_id = str(cursor.fetchone()[0])
+            feed_channel_mention = "<#" + feed_channel_id + ">"
+            await ctx.respond(f"{guild}'s RSS Feed channel is set to {feed_channel_mention}")
 
     except sqlite3.Error as error:
-        print("info command error: ",error)
+        print("info command error: " , error)
         await ctx.respond("Please make sure to run the /setup command")
 
 def main():
