@@ -110,8 +110,22 @@ def feed_check(feed_url):
     else:
         return True
 
+#Function to check if Feed URL has been added to guild specific DB
+def twt_user_check(twt_user):
+    """ Check for the twitter username in the Guild's DB
+    :param twt_user: Twitter username
+    :return bool:
+    """
+    cursor = Twitter_conn.cursor()
+    cursor.execute("SELECT usernames FROM Twitter_Feeds WHERE usernames = (?)", [twt_user])
+    #SQL statement will return twt_user as provided by command if this feed has already been added. Otherwise returns None
+    if cursor.fetchone() is None:
+        return False
+    else:
+        return True
+
 #Function to add an RSS Feed url to the guild's DB
-def db_add_feed(RSS_url, guild_id):
+def db_add_feed_url(RSS_url, guild_id):
     """ add a feed URL from slash command to the db
     :param feed_url: RSS feed url submitted by user in command "add"
     :param guild_id: Guild ID
@@ -143,6 +157,24 @@ def db_remove_feed(RSS_url:str, guild_id:str):
     else:
         cursor.execute("DELETE FROM RSS_Feeds WHERE feed_url = (?) AND guild_id = (?)", [RSS_url, guild_id])
         RSS_conn.commit()
+        return successful
+
+#Function to add an RSS Feed url to the guild's DB
+def db_add_twitter_user(twt_user:str, guild_id:str):
+    """ add a twitter username from slash command to the db
+    :param twt_user: Twitter username submitted by user in command "add"
+    :param guild_id: Guild ID
+    :return str: one of the 2 statuses
+    """
+    existing_user = "Twitter account already added"
+    successful = "Account added successfully"
+    feed_channel_id = get_posting_channel(Twitter_conn, guild_id)
+    cursor = Twitter_conn.cursor()
+    if twt_user_check(twt_user):
+        return existing_user
+    else:
+        cursor.execute("INSERT INTO Twitter_Feeds (guild_id, channel_id, usernames) VALUES (?,?,?)", [guild_id, feed_channel_id, twt_user])
+        Twitter_conn.commit()
         return successful
 
 #
@@ -179,7 +211,7 @@ async def add_rss(ctx, feed_url: str):
         return
     channel = get_posting_channel(RSS_conn, guild_id)
     channel_mention = "<#" + channel + ">"
-    status = db_add_feed(feed_url, guild_id)
+    status = db_add_feed_url(feed_url, guild_id)
     await ctx.respond(status + f" in {channel_mention}")
 
 #Remove RSS feed command
@@ -227,24 +259,31 @@ async def info_rss(ctx):
 #TWITTER RELATED COMMANDS BELOW 
 #
 
-#Slash command template
+#Add twitter user to post tweets from
 @catvenBot.slash_command(name = "add_twitter", description = "add a twitter username to your feed list")
 async def add_twitter(ctx, username:str):
-    
-    await ctx.respond("Hey!")
+    guild_id = ctx.guild.id
+
+    if not setup_check(Twitter_conn, guild_id):
+        await ctx.respond("Please make sure to run the /setup command")
+        return
+    channel = get_posting_channel(Twitter_conn, guild_id)
+    posting_channel_mention = "<#" + channel + ">"
+    result = db_add_twitter_user(username,guild_id)
+    await ctx.respond(result + f" in {posting_channel_mention}")
 
 #Setup channel for Twitter feed command
 @catvenBot.slash_command(name = "setup_twt", description = "Set up the bot's Twitter feeds by selecting a channel to post in")
 async def setup_twt(ctx, channel: discord.TextChannel): 
     setup_guild_id = str(ctx.guild.id)
     setup_channel_id = str(channel.id)
-    db_setup_guild_channel(guild_id=setup_guild_id, channel_id=setup_channel_id)
-    await ctx.respond(f"Succesfully set {channel.mention} as the RSS feed channel")
+    db_setup_guild_channel(Twitter_conn, setup_guild_id, setup_channel_id)
+    await ctx.respond(f"Succesfully set {channel.mention} as the Twitter feed channel")
 
 def main():
     sql_create_feeds_table = "CREATE TABLE IF NOT EXISTS RSS_Feeds (guild_id string, channel_id string, feed_url string);"
     sql_create_twitter_list_table = "CREATE TABLE IF NOT EXISTS Twitter_Feeds (guild_id string, channel_id string, usernames);"
-    if RSS_conn is not None:
+    if RSS_conn and Twitter_conn is not None:
         create_table(conn = RSS_conn, create_table_sql = sql_create_feeds_table)
         create_table(conn = Twitter_conn, create_table_sql =sql_create_twitter_list_table)
     else:
