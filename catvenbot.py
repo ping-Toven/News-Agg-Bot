@@ -1,10 +1,10 @@
+import logging
+import sqlite3
+import os
 import discord
 import tweepy
-import logging
-import os
-import sqlite3
-import sqlite_db
 from dotenv import load_dotenv
+import sqlite_db
 
 load_dotenv()
 #set up logging module for pycord
@@ -15,7 +15,7 @@ handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 #init discord bot
 catvenBot = discord.Bot()
-#init SQLite DB Conncetions 
+#init SQLite DB Conncetions
 RSS_database = "RSS_Feeds.db"
 Twitter_database = "Twitter_Feeds.db"
 RSS_conn = sqlite3.connect(RSS_database)
@@ -29,8 +29,6 @@ db = sqlite_db.SQLITE_DB
 #Write to terminal on login
 @catvenBot.event
 async def on_ready():
-    RSS_conn = sqlite3.connect(RSS_database)
-    Twitter_conn = sqlite3.connect(Twitter_database)
     print(f'Logged on as {catvenBot.user}!')
 
 #Write to terminal on disconnect
@@ -44,12 +42,12 @@ async def hello(ctx):
     await ctx.respond("Hey!")
 
 #
-#RSS RELATED COMMANDS BELOW 
+#RSS RELATED COMMANDS BELOW
 #
 
 #Add RSS feed command
 @catvenBot.slash_command(name = "rss-add", description = "Add an RSS feed to the bot's watchlist.")
-async def add_rss(ctx, feed_url: str): 
+async def add_rss(ctx, feed_url: str):
     guild_id = str(ctx.guild.id)
     #if false prompt user to run /setup command
     if not db.setup_check(db, RSS_conn, guild_id):
@@ -75,7 +73,7 @@ async def remove_rss(ctx, feed_url: str):
 
 #Setup channel for RSS feed command
 @catvenBot.slash_command(name = "rss-setup", description = "Set up the bot's RSS feeds by selecting a channel to post in")
-async def setup_rss(ctx, channel: discord.TextChannel): 
+async def setup_rss(ctx, channel: discord.TextChannel):
     setup_guild_id = str(ctx.guild.id)
     setup_channel_id = str(channel.id)
     db.setup_guild_channel(db, RSS_conn, setup_guild_id, setup_channel_id)
@@ -101,7 +99,7 @@ async def info_rss(ctx):
         await ctx.respond("Please make sure to run the /setup command")
 
 #
-#TWITTER RELATED COMMANDS BELOW 
+#TWITTER RELATED COMMANDS BELOW
 #
 
 #Add twitter user to post tweets from
@@ -119,7 +117,7 @@ async def add_twitter(ctx, username:str):
 
 #Setup channel for Twitter feed command
 @catvenBot.slash_command(name = "twitter-setup", description = "Set up the bot's Twitter feeds by selecting a channel to post in")
-async def setup_twt(ctx, channel: discord.TextChannel): 
+async def setup_twt(ctx, channel: discord.TextChannel):
     setup_guild_id = str(ctx.guild.id)
     setup_channel_id = str(channel.id)
     db.setup_guild_channel(db, Twitter_conn, setup_guild_id, setup_channel_id)
