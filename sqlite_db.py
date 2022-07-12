@@ -1,14 +1,8 @@
 import sqlite3
 from sqlite3 import Error
-
-
-#
-# SQLite DB Helper functions
-#
-
 class SQLITE_DB:
     # Function to create the tables
-    def create_table(self, conn, create_table_sql):
+    def create_table(self, conn:sqlite3.Connection, create_table_sql):
         """ create a table from the create_table_sql statement
         :param conn: Connection object
         :param create_table_sql: a CREATE TABLE statement
@@ -81,7 +75,7 @@ class SQLITE_DB:
             return feed_channel_id
 
     #Function to check if feed_source has been added to guild specific DB
-    def feed_check(self, conn: sqlite3.Connection, feed_key:str, gid:str):
+    def feed_check(conn: sqlite3.Connection, feed_key:str, gid:str):
         """ Check for a feed value in the Guild's DB
         :param search_key: command's feed input to check against
         :param gid: Guild ID in which to look for search_key
@@ -111,7 +105,7 @@ class SQLITE_DB:
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         table_name, = cursor.fetchone()
-        if self.feed_check(self, conn, feed_source, guild_id):
+        if self.feed_check(conn, feed_source, guild_id):
             return existing_feed
         else:
             cursor.execute("INSERT INTO {} (guild_id, channel_id, feed_source) VALUES (?,?,?)".format(table_name),
@@ -120,7 +114,7 @@ class SQLITE_DB:
             return successful
 
     # Function to remove an existing RSS Feed url from guild's DB
-    def remove_feed(self, conn, feed_source: str, guild_id: str):
+    def remove_feed(self, conn:sqlite3.Connection, feed_source: str, guild_id: str):
         """ remove an existing feed URL from guild specific DB entries
         :param conn: sqlite3 connection object
         :param feed_source: feed submitted by user in command
@@ -132,10 +126,23 @@ class SQLITE_DB:
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         table_name, = cursor.fetchone()
-        if not self.feed_check(self, conn, feed_source, guild_id):
+        if not self.feed_check(conn, feed_source, guild_id):
             return unknown_feed
         else:
             cursor.execute("DELETE FROM {} WHERE feed_source = (?) AND guild_id = (?)".format(table_name),
              [feed_source, guild_id])
             conn.commit()
             return successful
+
+    def list_feeds(conn:sqlite3.Connection):
+        """ Fetch all feeds from a single DB
+        :param conn: sqlite3 connection object
+        :param guild_id: Guild ID
+        :return feed_list: returns a list of all the feeds in tuple syntax (a,b,c)
+        """
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        table_name, = cursor.fetchone()
+        cursor.execute("SELECT guild_id, feed_source FROM {}".format(table_name))
+        feed_list = cursor.fetchall()
+        return feed_list
