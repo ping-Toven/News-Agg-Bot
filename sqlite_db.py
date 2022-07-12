@@ -51,7 +51,7 @@ class SQLITE_DB:
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
             table_name, = cursor.fetchone()
             # if setup has not happened, insert new row
-            if not self.setup_check(conn,guild_id):
+            if not self.setup_check(self, conn, guild_id):
                 cursor.execute("INSERT INTO {} (guild_id, channel_id) VALUES (?,?)".format(table_name),
                                [guild_id, channel_id])
                 conn.commit()
@@ -73,7 +73,7 @@ class SQLITE_DB:
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         table_name, = cursor.fetchone()
         # if setup has not happened, abort
-        if not self.setup_check(conn, guild_id):
+        if not self.setup_check(self, conn, guild_id):
             return
         else:
             cursor.execute("SELECT channel_id FROM {} WHERE guild_id=(?)".format(table_name), [guild_id])
@@ -107,11 +107,11 @@ class SQLITE_DB:
         """
         existing_feed = "Feed already added"
         successful = "Feed added successfully"
-        feed_channel_id = self.get_posting_channel(conn, guild_id)
+        feed_channel_id = self.get_posting_channel(self, conn, guild_id)
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         table_name, = cursor.fetchone()
-        if self.feed_check(conn, feed_source, guild_id):
+        if self.feed_check(self, conn, feed_source, guild_id):
             return existing_feed
         else:
             cursor.execute("INSERT INTO {} (guild_id, channel_id, feed_source) VALUES (?,?,?)".format(table_name),
@@ -132,7 +132,7 @@ class SQLITE_DB:
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         table_name, = cursor.fetchone()
-        if not self.feed_check(conn, feed_source, guild_id):
+        if not self.feed_check(self, conn, feed_source, guild_id):
             return unknown_feed
         else:
             cursor.execute("DELETE FROM {} WHERE feed_source = (?) AND guild_id = (?)".format(table_name),
