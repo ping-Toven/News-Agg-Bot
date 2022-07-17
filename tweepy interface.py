@@ -10,7 +10,16 @@ client = tweepy.Client(b_token)
 
 # Create dictionary of username <> user_id values
 db = sqlite_db.SQLITE_DB
-u_list = db.list_feeds()# Eventually import from .csv or something
+conn = db.get_connection(db, "Twitter")
+feeds = db.list_feeds(conn)
+u_list = []
+users = {}
+
+for uname in feeds:
+    guild, user = uname
+    if user is None:
+        continue
+    u_list.append(user)
 
 for x in u_list:
     info = client.get_user(username=x).data
