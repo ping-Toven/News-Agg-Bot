@@ -17,19 +17,13 @@ class SQLITE_DB:
         except Error as e:
             print(e)
 
-    def get_connection(self, db_name: str):
+    def get_connection(self):
         """ Get the corresponding db connection object
         :param db_name: name of database to connect to
         :return sqlite3.Connection: returns connection object
         """
-        rss_database = "RSS_Feeds.db"
-        twitter_database = "Twitter_Feeds.db"
-        if db_name == "rss":
-            conn_rss = sqlite3.connect(rss_database)
-            return conn_rss
-        elif db_name == "Twitter":
-            conn_twitter = sqlite3.connect(twitter_database)
-            return conn_twitter
+            conn_feeds = sqlite3.connect("Feeds.db")
+            return conn_feeds
 
     # Function to check if guild has been set up in DB
     def setup_check(self, conn: sqlite3.Connection, gid: str):
@@ -150,7 +144,7 @@ class SQLITE_DB:
             conn.commit()
             return successful
 
-    def list_feeds(conn: sqlite3.Connection):
+    def list_feeds(self, conn: sqlite3.Connection):
         """ Fetch all feeds from a single DB
         :param conn: sqlite3 connection object
         :param guild_id: Guild ID

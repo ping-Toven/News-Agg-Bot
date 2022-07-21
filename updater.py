@@ -1,38 +1,37 @@
-from json_db import JSON_DB
+from sqlite_db import SQLITE_DB
 from aiohttp import ClientSession
-import xmltodict
 import asyncio
 import itertools
 from typing import Any
-from nextcord import Client, TextChannel
+from discord import Client, TextChannel
 
 
-def start(loop, db: JSON_DB, client):
+def start(loop, db: SQLITE_DB, client):
     update_feeds(loop, db, client)
 
 
-def schedule_update(loop, db: JSON_DB, client):
+def schedule_update(loop, db: SQLITE_DB, client):
     loop.call_later(5*60, update_feeds, loop, db, client)
     print("Scheduled the next feed update")
 
 
-def update_feeds(loop, db: JSON_DB, client):
+def update_feeds(loop, db: SQLITE_DB, client):
     schedule_update(loop, db, client)
     loop.create_task(do_feed_update(db, client))
 
 
-async def do_feed_update(db: JSON_DB, client):
+async def do_feed_update(db: SQLITE_DB,):
     print("Doing feed update")
-    for guild_id, feeds in db.get("feeds", default={}).items():
+    for guild_id, feeds in db.list_feeds(db, conn):
         print(f"Updating feeds for guild ID {guild_id}")
         await do_guild_feed_updates(guild_id, feeds, db, client)
 
 
-async def do_guild_feed_updates(guild_id: str, feeds: list[str], db: JSON_DB, client):
+async def do_guild_feed_updates(guild_id: str, feeds: list[str], db: SQLITE_DB, client):
     await asyncio.gather(*[update_feed(guild_id, feed_url, db, client) for feed_url in feeds])
 
 
-async def update_feed(guild_id: str, feed_url: str, db: JSON_DB, client):
+async def update_feed(guild_id: str, feed_url: str, db: SQLITE_DB, client):
     feed_data = await get_latest_feed(feed_url)
     if feed_data:
         last_seen_guid = get_last_seen_item_guid(guild_id, feed_url, db)
@@ -48,7 +47,7 @@ async def update_feed(guild_id: str, feed_url: str, db: JSON_DB, client):
             save_new_guid(current_guid, guild_id, feed_url, db)
 
 
-async def handle_new_item(item: dict, guild_id: str, db: JSON_DB, client):
+async def handle_new_item(item: dict, guild_id: str, db: SQLITE_DB, client):
     channel = get_guild_feed_update_channel(db, guild_id, client)
     if channel:
         await channel.send(f"**New Episode**\n{item['title']}\n{item['link']}")
@@ -70,20 +69,20 @@ def get_new_items_from_feed(feed_data: list[dict], last_seen_guid: str) -> list[
     return items
 
 
-def get_guild_feed_update_channel(db: JSON_DB, guild_id: str, client: Client) -> TextChannel:
+def get_guild_feed_update_channel(db: SQLITE_DB, guild_id: str, client: Client) -> TextChannel:
     channel_id = db.get("guilds", default={}).get(guild_id, None)
     if channel_id:
         return client.get_channel(channel_id)
 
 
-def get_last_seen_item_guid(guild_id: str, feed_url: str, db: JSON_DB) -> str | None:
+def get_last_seen_item_guid(guild_id: str, feed_url: str, db: SQLITE_DB) -> str | None:
     guilds = db.get("items", default={})
     feeds = guilds.get(guild_id, {})
     guid = feeds.get(feed_url, None)
     return guid
 
 
-def save_new_guid(new_guid: str, guild_id: str, feed_url: str, db: JSON_DB):
+def save_new_guid(new_guid: str, guild_id: str, feed_url: str, db: SQLITE_DB):
     guilds = db.get("items", default={})
     feeds = guilds.get(guild_id, {})
     feeds[feed_url] = new_guid
