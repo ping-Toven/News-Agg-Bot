@@ -1,8 +1,10 @@
 import sqlite3
 from sqlite3 import Error
+
+
 class SQLITE_DB:
     # Function to create the tables
-    def create_table(self, conn:sqlite3.Connection, create_table_sql):
+    def create_table(self, conn: sqlite3.Connection, create_table_sql):
         """ create a table from the create_table_sql statement
         :param conn: Connection object
         :param create_table_sql: a CREATE TABLE statement
@@ -14,6 +16,20 @@ class SQLITE_DB:
             print("Table created if it didn't already exist")
         except Error as e:
             print(e)
+
+    def get_connection(self, db_name: str):
+        """ Get the corresponding db connection object
+        :param db_name: name of database to connect to
+        :return sqlite3.Connection: returns connection object
+        """
+        rss_database = "RSS_Feeds.db"
+        twitter_database = "Twitter_Feeds.db"
+        if db_name == "rss":
+            conn_rss = sqlite3.connect(rss_database)
+            return conn_rss
+        elif db_name == "Twitter":
+            conn_twitter = sqlite3.connect(twitter_database)
+            return conn_twitter
 
     # Function to check if guild has been set up in DB
     def setup_check(self, conn: sqlite3.Connection, gid: str):
@@ -33,7 +49,7 @@ class SQLITE_DB:
             return True
 
     # Function to set up a guild with a specific channel id for a feed (RSS & Twitter separate dbs / channels)
-    def setup_guild_channel(self, conn:sqlite3.Connection, guild_id: str, channel_id: str):
+    def setup_guild_channel(self, conn: sqlite3.Connection, guild_id: str, channel_id: str):
         """ add a guild_id:channel_id row in db
         :param conn: Connection object
         :param guild_id: Guild ID str
@@ -57,7 +73,7 @@ class SQLITE_DB:
         except sqlite3.Error as error:
             print("Failed to setup guild's channel. Error: ", error)
 
-    def get_posting_channel(self, conn:sqlite3.Connection, guild_id: str):
+    def get_posting_channel(self, conn: sqlite3.Connection, guild_id: str):
         """ fetch posting channel from guild
         :param conn: db connection obj
         :param guild_id: Guild ID str
@@ -74,8 +90,8 @@ class SQLITE_DB:
             feed_channel_id, = cursor.fetchone()
             return feed_channel_id
 
-    #Function to check if feed_source has been added to guild specific DB
-    def feed_check(conn: sqlite3.Connection, feed_key:str, gid:str):
+    # Function to check if feed_source has been added to guild specific DB
+    def feed_check(conn: sqlite3.Connection, feed_key: str, gid: str):
         """ Check for a feed value in the Guild's DB
         :param search_key: command's feed input to check against
         :param gid: Guild ID in which to look for search_key
@@ -92,7 +108,7 @@ class SQLITE_DB:
         return False
 
     # Function to add a feed source to the guild's DB
-    def add_feed(self, conn:sqlite3.Connection, feed_source:str, guild_id:str):
+    def add_feed(self, conn: sqlite3.Connection, feed_source: str, guild_id: str):
         """ add a feed source from slash command to the db
         :param conn: sqlite3 connection object
         :param feed_source: feed source submitted by user in command "add"
@@ -114,7 +130,7 @@ class SQLITE_DB:
             return successful
 
     # Function to remove an existing RSS Feed url from guild's DB
-    def remove_feed(self, conn:sqlite3.Connection, feed_source: str, guild_id: str):
+    def remove_feed(self, conn: sqlite3.Connection, feed_source: str, guild_id: str):
         """ remove an existing feed URL from guild specific DB entries
         :param conn: sqlite3 connection object
         :param feed_source: feed submitted by user in command
@@ -130,11 +146,11 @@ class SQLITE_DB:
             return unknown_feed
         else:
             cursor.execute("DELETE FROM {} WHERE feed_source = (?) AND guild_id = (?)".format(table_name),
-             [feed_source, guild_id])
+                           [feed_source, guild_id])
             conn.commit()
             return successful
 
-    def list_feeds(conn:sqlite3.Connection):
+    def list_feeds(conn: sqlite3.Connection):
         """ Fetch all feeds from a single DB
         :param conn: sqlite3 connection object
         :param guild_id: Guild ID
