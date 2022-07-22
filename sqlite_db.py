@@ -99,7 +99,7 @@ class SQLITE_DB:
         return False
 
     # Function to add a feed source to the guild's DB
-    def add_feed(self, conn: sqlite3.Connection, feed_source: str, guild_id: str, table:str):
+    def add_feed(self, conn: sqlite3.Connection, feed_source: str, guild_id: str, table: str):
         """ add a feed source from slash command to the db
         :param table: table within which to add the feed_source to
         :param conn: sqlite3 connection object
