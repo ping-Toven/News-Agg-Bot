@@ -5,11 +5,12 @@ import sqlite_db
 import sqlite3
 
 # init SQLite DB Connections
-table_twitter_discord = "Twitter Discord Map"
-table_twitter_uid = "Twitter Usernames UID Map"
+table_twitter_discord = "Twitter_Usernames_Channels"
+table_twitter_uid = "Twitter_UID_Map"
 db = sqlite_db.SQLITE_DB
 conn = db.get_connection(db)
-sql_create_twitter_list_table = r"CREATE TABLE IF NOT EXISTS 'Twitter Discord Map' (guild string, channel string, source string); "
+sql_create_twitter_list_table = r"CREATE TABLE IF NOT EXISTS Twitter_Usernames_Channels (guild string, channel " \
+                                r"string, source string); "
 
 if conn is not None:
     db.create_table(db, conn, sql_create_twitter_list_table)

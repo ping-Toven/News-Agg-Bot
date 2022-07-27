@@ -19,11 +19,10 @@ class SQLITE_DB:
 
     def get_connection(self):
         """ Get the corresponding db connection object
-        :param db_name: name of database to connect to
         :return sqlite3.Connection: returns connection object
         """
-        conn_feeds = sqlite3.connect("catven.db")
-        return conn_feeds
+        conn = sqlite3.connect("catven.db")
+        return conn
 
     # Function to check if guild has been set up in DB
     def setup_check(self, conn: sqlite3.Connection, gid: str, table: str):
@@ -44,6 +43,7 @@ class SQLITE_DB:
     # Function to set up a guild with a specific channel id for a feed (RSS & Twitter separate dbs / channels)
     def setup_guild_channel(self, conn: sqlite3.Connection, guild_id: str, channel_id: str, table: str):
         """ add a guild_id:channel_id row in db
+        :param self: the db helper
         :param table: table within which to set up this guild
         :param conn: Connection object
         :param guild_id: Guild ID str
@@ -53,7 +53,7 @@ class SQLITE_DB:
         try:
             cursor = conn.cursor()
             # if setup has not happened, insert new row
-            if not self.setup_check(self, conn, guild_id):
+            if not self.setup_check(self, conn, guild_id, table):
                 cursor.execute("INSERT INTO {} (guild, channel) VALUES (?,?)".format(table),
                                [guild_id, channel_id])
                 conn.commit()
@@ -74,7 +74,7 @@ class SQLITE_DB:
         """
         cursor = conn.cursor()
         # if setup has not happened, abort
-        if not self.setup_check(self, conn, guild_id):
+        if not self.setup_check(self, conn, guild_id, table):
             return
         else:
             cursor.execute("SELECT channel FROM {} WHERE guild = (?)".format(table), [guild_id])
@@ -109,7 +109,7 @@ class SQLITE_DB:
         """
         existing_feed = "Feed already added"
         successful = "Feed added successfully"
-        feed_channel_id = self.get_posting_channel(self, conn=conn, guild_id=guild_id, table=table)
+        feed_channel_id = self.get_posting_channel(self, conn, guild_id, table)
         cursor = conn.cursor()
         if self.feed_check(self, conn, feed_source, guild_id, table):
             return existing_feed
