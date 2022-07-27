@@ -5,10 +5,10 @@ import sqlite_db
 import sqlite3
 
 # init SQLite DB Conncetions
-table_RSS = "RSS"
-conn = sqlite3.connect("Feeds.DB")
+table_RSS_Feeds = "RSS_Feeds_Channels"
 db = sqlite_db.SQLITE_DB
-sql_create_RSS_Feeds_table = "CREATE TABLE IF NOT EXISTS RSS (guild string, channel string, " \
+conn = db.get_connection(db)
+sql_create_RSS_Feeds_table = "CREATE TABLE IF NOT EXISTS RSS_Feeds_Channels (guild string, channel string, " \
                                 "source string); "
 if conn is not None:
     db.create_table(db, conn, sql_create_RSS_Feeds_table)
@@ -24,12 +24,12 @@ class RSS_Cog(commands.Cog):
     async def add_rss(self, ctx, feed_url: Option(str, "Enter the URL of the RSS Feed you'd like to add")):
         guild_id = str(ctx.guild.id)
         # if false prompt user to run /setup command
-        if not db.setup_check(db, conn, guild_id, table_RSS):
+        if not db.setup_check(db, conn, guild_id, table_RSS_Feeds):
             await ctx.respond("Please make sure to run the /setup command")
             return
-        channel_id = str(db.get_posting_channel(db, conn, guild_id, table_RSS))
+        channel_id = str(db.get_posting_channel(db, conn, guild_id, table_RSS_Feeds))
         channel_mention = "<#" + channel_id + ">"
-        status = db.add_feed(db, conn, feed_url, guild_id, table_RSS)
+        status = db.add_feed(db, conn, feed_url, guild_id, table_RSS_Feeds)
         await ctx.respond(status + f" in {channel_mention}")
 
     # Remove RSS feed command
@@ -37,12 +37,12 @@ class RSS_Cog(commands.Cog):
     async def remove_rss(self, ctx, feed_url: str):
         guild_id = str(ctx.guild.id)
         # if false prompt user to run /setup command
-        if not db.setup_check(db, conn, guild_id, table_RSS):
+        if not db.setup_check(db, conn, guild_id, table_RSS_Feeds):
             await ctx.respond("Please make sure to run the /setup command")
             return
-        channel_id = str(db.get_posting_channel(db, conn, guild_id, table_RSS))
+        channel_id = str(db.get_posting_channel(db, conn, guild_id, table_RSS_Feeds))
         channel_mention = "<#" + channel_id + ">"
-        status = db.remove_feed(db, conn, feed_url, guild_id, table_RSS)
+        status = db.remove_feed(db, conn, feed_url, guild_id, table_RSS_Feeds)
         await ctx.respond(status + f" in {channel_mention}")
 
     # Setup channel for RSS feed command
@@ -50,7 +50,7 @@ class RSS_Cog(commands.Cog):
     async def setup_rss(self, ctx, channel: discord.TextChannel):
         setup_guild_id = str(ctx.guild.id)
         setup_channel_id = str(channel.id)
-        db.setup_guild_channel(db, conn, setup_guild_id, setup_channel_id, table_RSS)
+        db.setup_guild_channel(db, conn, setup_guild_id, setup_channel_id, table_RSS_Feeds)
         await ctx.respond(f"Succesfully set {channel.mention} as the RSS feed channel")
 
     # Check RSS feed setup info command
@@ -60,17 +60,27 @@ class RSS_Cog(commands.Cog):
         guild = ctx.guild
         try:
             # if false prompt user to run /setup command
-            if not db.setup_check(db, conn, guild_id, table_RSS):
-                await ctx.respond("Please make sure to run the /setup command")
+            if not db.setup_check(db, conn, guild_id, table_RSS_Feeds):
+                await ctx.respond("Please make sure to run the /rss-setup command")
             # else list information regarding channel config
             else:
-                channel_id = str(db.get_posting_channel(db, conn, guild_id, table_RSS))
+                channel_id = str(db.get_posting_channel(db, conn, guild_id, table_RSS_Feeds))
                 channel_mention = "<#" + channel_id + ">"
-                await ctx.respond(f"{guild}'s RSS Feed channel is set to {channel_mention}")
-                # cursor.execute("SELECT feed_url FROM RSS_Feeds WHERE guild_id=(?)", [guild_id])
+                feed_list = ''
+                for gid, feeds in db.list_feeds(db, conn, table_RSS_Feeds):
+                    gid, feeds = str(gid), str(feeds)
+                    if gid == guild_id:
+                        if feeds == "None":
+                            continue
+                        feed_list += "\n> - " + feeds
+                if feed_list == '':
+                    await ctx.respond("Please make sure to add a feed with /rss-add")
+                    return
+                await ctx.respond(
+                    f"{guild}'s RSS Feed channel is set to {channel_mention}\n{guild}'s RSS Feeds are: {feed_list}")
         except sqlite3.Error as error:
             print("info command error: ", error)
-            await ctx.respond("Please make sure to run the /setup command")
+            await ctx.respond("Please make sure to run the /rss-setup command")
 
 
 def setup(client):

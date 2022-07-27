@@ -75,7 +75,7 @@ class Twitter_Cog(commands.Cog):
                     if gid == guild_id:
                         if feeds == "None":
                             continue
-                        feed_list += "\n> @" + feeds
+                        feed_list += "\n> -<https://twitter.com/" + feeds + ">"
                 if feed_list == '':
                     await ctx.respond("Please make sure to add a feed with /twitter-add")
                     return
