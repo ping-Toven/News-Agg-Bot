@@ -22,7 +22,7 @@ class SQLITE_DB:
         :param db_name: name of database to connect to
         :return sqlite3.Connection: returns connection object
         """
-        conn_feeds = sqlite3.connect("Feeds.db")
+        conn_feeds = sqlite3.connect("catven.db")
         return conn_feeds
 
     # Function to check if guild has been set up in DB
@@ -149,3 +149,30 @@ class SQLITE_DB:
         cursor.execute("SELECT guild, source FROM {}".format(table))
         feed_list = cursor.fetchall()
         return feed_list
+
+    def add_username_uid(self, conn: sqlite3.Connection, table: str, username: str, uid: str):
+        """ update the twitter username : uid map as needed
+        :param table: twitter username db
+        :param uid: twitter api uid
+        :param username: twitter account name
+        :param conn: connection to the main DB
+        :return:
+        """
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO {} VALUES (?,?)".format(table), [username, uid])
+        conn.commit()
+
+    def uid_map_check(self, conn: sqlite3, table: str, uid: str):
+        """
+        :param conn: sqlite2 Connection object
+        :param table: name of the table to check in
+        :param uid: uid of the twitter account to check
+        :return:
+        """
+        cursor = conn.cursor()
+        cursor.execute("SELECT uid FROM {} WHERE uid = (?)".format(table), [uid])
+        uids = cursor.fetchall()
+        for id, in uids:
+            if id == uid:
+                return True
+        return False

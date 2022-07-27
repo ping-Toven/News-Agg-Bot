@@ -5,11 +5,11 @@ import sqlite_db
 import sqlite3
 
 # init SQLite DB Connections
-table_twitter = "Twitter"
-conn = sqlite3.connect("Feeds.db")
+table_twitter_discord = "Twitter Discord Map"
+table_twitter_uid = "Twitter Usernames UID Map"
 db = sqlite_db.SQLITE_DB
-sql_create_twitter_list_table = "CREATE TABLE IF NOT EXISTS Twitter (guild string, channel string, " \
-                                "source string); "
+conn = db.get_connection(db)
+sql_create_twitter_list_table = r"CREATE TABLE IF NOT EXISTS 'Twitter Discord Map' (guild string, channel string, source string); "
 
 if conn is not None:
     db.create_table(db, conn, sql_create_twitter_list_table)
@@ -25,12 +25,12 @@ class Twitter_Cog(commands.Cog):
     async def add_twitter(self, ctx, username: str):
         guild_id = ctx.guild.id
 
-        if not db.setup_check(db, conn, guild_id, table_twitter):
+        if not db.setup_check(db, conn, guild_id, table_twitter_discord):
             await ctx.respond("Please make sure to run the /twitter-setup command")
             return
-        channel_id = str(db.get_posting_channel(db, conn, guild_id, table_twitter))
+        channel_id = str(db.get_posting_channel(db, conn, guild_id, table_twitter_discord))
         posting_channel_mention = "<#" + channel_id + ">"
-        result = db.add_feed(db, conn, username, guild_id, table_twitter)
+        result = db.add_feed(db, conn, username, guild_id, table_twitter_discord)
         await ctx.respond(result + f" in {posting_channel_mention}")
 
     # Remove RSS feed command
@@ -38,12 +38,12 @@ class Twitter_Cog(commands.Cog):
     async def remove_twitter(self, ctx, username: str):
         guild_id = str(ctx.guild.id)
         # if false prompt user to run /setup command
-        if not db.setup_check(db, conn, guild_id, table_twitter):
+        if not db.setup_check(db, conn, guild_id, table_twitter_discord):
             await ctx.respond("Please make sure to run the /twitter-setup command")
             return
-        channel_id = str(db.get_posting_channel(db, conn, guild_id, table_twitter))
+        channel_id = str(db.get_posting_channel(db, conn, guild_id, table_twitter_discord))
         channel_mention = "<#" + channel_id + ">"
-        status = db.remove_feed(db, conn, username, guild_id, table_twitter)
+        status = db.remove_feed(db, conn, username, guild_id, table_twitter_discord)
         await ctx.respond(status + f" in {channel_mention}")
 
     # Setup channel for Twitter feed command
@@ -51,7 +51,7 @@ class Twitter_Cog(commands.Cog):
     async def setup_twitter(self, ctx, channel: discord.TextChannel):
         setup_guild_id = str(ctx.guild.id)
         setup_channel_id = str(channel.id)
-        db.setup_guild_channel(db, conn, setup_guild_id, setup_channel_id, table_twitter)
+        db.setup_guild_channel(db, conn, setup_guild_id, setup_channel_id, table_twitter_discord)
         await ctx.respond(f"Successfully set {channel.mention} as the Twitter feed channel")
 
     # Check RSS feed setup info command
@@ -61,15 +61,15 @@ class Twitter_Cog(commands.Cog):
         guild = ctx.guild
         try:
             # if false prompt user to run /setup command
-            if not db.setup_check(db, conn, guild_id, table_twitter):
+            if not db.setup_check(db, conn, guild_id, table_twitter_discord):
                 await ctx.respond("Please make sure to run the /twitter-setup command")
                 return
             # else list information regarding channel config
             else:
-                channel_id = str(db.get_posting_channel(db, conn, guild_id, table_twitter))
+                channel_id = str(db.get_posting_channel(db, conn, guild_id, table_twitter_discord))
                 channel_mention = "<#" + channel_id + ">"
                 feed_list = ''
-                for gid, feeds in db.list_feeds(db, conn, table_twitter):
+                for gid, feeds in db.list_feeds(db, conn, table_twitter_discord):
                     gid, feeds = str(gid), str(feeds)
                     if gid == guild_id:
                         if feeds == "None":

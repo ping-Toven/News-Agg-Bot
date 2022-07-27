@@ -7,26 +7,26 @@ from dotenv import load_dotenv
 load_dotenv()
 b_token = os.getenv("B_TOKEN")
 client = tweepy.Client(b_token)
+table_twitter_discord = "Twitter Discord Map"
+table_twitter_uid = "Twitter Usernames UID Map"
 
-# Create dictionary of username <> user_id values
-db = sqlite_db.SQLITE_DB
-conn = db.get_connection(db, "Twitter")
-feeds = db.list_feeds(conn)
-u_list = []
-users = {}
+def get_uids(conn):
+    """ grab and update uids for all twitter accounts in the twitter table
+    :param conn: db connection obj
+    :return str: Error or feed channel id
+    """
+    u_list = []
+    db = sqlite_db.SQLITE_DB
+    for gid, feeds in db.list_feeds(db, conn, table_twitter_discord):
+        gid, feeds = str(gid), str(feeds)
+        u_list += feeds
 
-for uname in feeds:
-    guild, user = uname
-    if user is None:
-        continue
-    u_list.append(user)
+    for x in u_list:
+        info = client.get_user(username=x).data
+        users[info.username] = info.id
 
-for x in u_list:
-    info = client.get_user(username=x).data
-    users[info.username] = info.id
-
-for username in users:
-    uid = users[username]
-    tweets = client.get_users_tweets(uid).data
-    for i in tweets:
-        print("https://twitter.com/{}/status/{}".format(username, i.id))
+    for username in users:
+        uid = users[username]
+        tweets = client.get_users_tweets(uid).data
+        for i in tweets:
+            print("https://twitter.com/{}/status/{}".format(username, i.id))
