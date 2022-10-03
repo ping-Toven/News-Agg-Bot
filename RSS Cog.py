@@ -22,6 +22,12 @@ class RSS_Cog(commands.Cog):
     # Add RSS feed command
     @slash_command(name="rss-add", description="Add an RSS feed to the bot's watchlist.")
     async def add_rss(self, ctx, feed_url: Option(str, "Enter the URL of the RSS Feed you'd like to add")):
+        """_summary_
+
+        Args:
+            ctx (_type_): _description_
+            feed_url (Option): _description_
+        """
         guild_id = str(ctx.guild.id)
         # if false prompt user to run /setup command
         if not db.setup_check(db, conn, guild_id, table_RSS_Feeds):
@@ -35,6 +41,12 @@ class RSS_Cog(commands.Cog):
     # Remove RSS feed command
     @slash_command(name="rss-remove", description="Remove an RSS feed from the bot's watchlist.")
     async def remove_rss(self, ctx, feed_url: str):
+        """_summary_
+
+        Args:
+            ctx (_type_): _description_
+            feed_url (str): _description_
+        """
         guild_id = str(ctx.guild.id)
         # if false prompt user to run /setup command
         if not db.setup_check(db, conn, guild_id, table_RSS_Feeds):
@@ -48,6 +60,12 @@ class RSS_Cog(commands.Cog):
     # Setup channel for RSS feed command
     @slash_command(name="rss-setup", description="Set up the bot's RSS feeds by selecting a channel to post in")
     async def setup_rss(self, ctx, channel: discord.TextChannel):
+        """_summary_
+
+        Args:
+            ctx (_type_): _description_
+            channel (discord.TextChannel): _description_
+        """
         setup_guild_id = str(ctx.guild.id)
         setup_channel_id = str(channel.id)
         db.setup_guild_channel(db, conn, setup_guild_id, setup_channel_id, table_RSS_Feeds)
@@ -56,6 +74,11 @@ class RSS_Cog(commands.Cog):
     # Check RSS feed setup info command
     @slash_command(name="rss-info", description="View the bot's configs for your RSS feeds")
     async def info_rss(self, ctx):
+        """_summary_
+
+        Args:
+            ctx (_type_): _description_
+        """
         guild_id = str(ctx.guild.id)
         guild = ctx.guild
         try:
@@ -84,5 +107,10 @@ class RSS_Cog(commands.Cog):
 
 
 def setup(client):
+    """_summary_
+
+    Args:
+        client (_type_): _description_
+    """
     client.add_cog(RSS_Cog(client))
     print("Added RSS Feed Cog")

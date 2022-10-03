@@ -22,23 +22,34 @@ Cog_Files = ['RSS Cog', 'Twitter Cog']
 # Write to terminal on login
 @newsAggBot.event
 async def on_ready():
+    """_summary_
+    """
     print(f'Logged on as {newsAggBot.user}!')
 
 
 # Write to terminal on disconnect
 @newsAggBot.event
 async def on_disconnect():
+    """_summary_
+    """
     print(f'Disconnected as {newsAggBot.user}')
 
 
 # Slash command template
 @newsAggBot.slash_command(name="hello", description="Say hello to the bot")
 async def hello(ctx):
+    """_summary_
+
+    Args:
+        ctx (_type_): _description_
+    """
     await ctx.respond("Hey!")
 
 
 # run on startup - create tables, check connections, run bot token
 def main():
+    """_summary_
+    """
     for extension in Cog_Files:
         newsAggBot.load_extension(extension)
         print("Cogs Loaded")

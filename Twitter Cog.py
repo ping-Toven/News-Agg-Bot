@@ -24,6 +24,12 @@ class Twitter_Cog(commands.Cog):
     # Add twitter user to post tweets from
     @slash_command(name="twitter-add", description="add a twitter username to your feed list")
     async def add_twitter(self, ctx, username: str):
+        """_summary_
+
+        Args:
+            ctx (_type_): _description_
+            username (str): _description_
+        """
         guild_id = ctx.guild.id
 
         if not db.setup_check(db, conn, guild_id, table_twitter_discord):
@@ -37,6 +43,12 @@ class Twitter_Cog(commands.Cog):
     # Remove RSS feed command
     @slash_command(name="twitter-remove", description="Remove a Twitter account from the bot's watchlist.")
     async def remove_twitter(self, ctx, username: str):
+        """_summary_
+
+        Args:
+            ctx (_type_): _description_
+            username (str): _description_
+        """
         guild_id = str(ctx.guild.id)
         # if false prompt user to run /setup command
         if not db.setup_check(db, conn, guild_id, table_twitter_discord):
@@ -50,6 +62,12 @@ class Twitter_Cog(commands.Cog):
     # Setup channel for Twitter feed command
     @slash_command(name="twitter-setup", description="Set up the bot's Twitter feeds by selecting a channel to post in")
     async def setup_twitter(self, ctx, channel: discord.TextChannel):
+        """_summary_
+
+        Args:
+            ctx (_type_): _description_
+            channel (discord.TextChannel): _description_
+        """
         setup_guild_id = str(ctx.guild.id)
         setup_channel_id = str(channel.id)
         db.setup_guild_channel(db, conn, setup_guild_id, setup_channel_id, table_twitter_discord)
@@ -58,6 +76,11 @@ class Twitter_Cog(commands.Cog):
     # Check RSS feed setup info command
     @slash_command(name="twitter-info", description="View the bot's configs for your Twitter feeds")
     async def info_twitter(self, ctx):
+        """_summary_
+
+        Args:
+            ctx (_type_): _description_
+        """
         guild_id = str(ctx.guild.id)
         guild = ctx.guild
         try:
@@ -88,5 +111,10 @@ class Twitter_Cog(commands.Cog):
 
 
 def setup(client):
+    """_summary_
+
+    Args:
+        client (_type_): _description_
+    """
     client.add_cog(Twitter_Cog(client))
     print("Added Twitter Cog")
