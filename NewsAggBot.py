@@ -12,7 +12,7 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w'
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 # init discord bot
-catvenBot = discord.Bot()
+newsAggBot = discord.Bot()
 # init SQLite DB Connections
 db = sqlite_db.SQLITE_DB
 # registering cog names
@@ -20,19 +20,19 @@ Cog_Files = ['RSS Cog', 'Twitter Cog']
 
 
 # Write to terminal on login
-@catvenBot.event
+@newsAggBot.event
 async def on_ready():
-    print(f'Logged on as {catvenBot.user}!')
+    print(f'Logged on as {newsAggBot.user}!')
 
 
 # Write to terminal on disconnect
-@catvenBot.event
+@newsAggBot.event
 async def on_disconnect():
-    print(f'Disconnected as {catvenBot.user}')
+    print(f'Disconnected as {newsAggBot.user}')
 
 
 # Slash command template
-@catvenBot.slash_command(name="hello", description="Say hello to the bot")
+@newsAggBot.slash_command(name="hello", description="Say hello to the bot")
 async def hello(ctx):
     await ctx.respond("Hey!")
 
@@ -40,9 +40,9 @@ async def hello(ctx):
 # run on startup - create tables, check connections, run bot token
 def main():
     for extension in Cog_Files:
-        catvenBot.load_extension(extension)
+        newsAggBot.load_extension(extension)
         print("Cogs Loaded")
-    catvenBot.run(os.getenv('TOKEN'))
+    newsAggBot.run(os.getenv('TOKEN'))
 
 
 if __name__ == '__main__':
