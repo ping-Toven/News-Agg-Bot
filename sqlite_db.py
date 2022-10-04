@@ -21,7 +21,7 @@ class SQLITE_DB:
         """ Get the corresponding db connection object
         :return sqlite3.Connection: returns connection object
         """
-        conn = sqlite3.connect("catven.db")
+        conn = sqlite3.connect("NewsAgg.db")
         return conn
 
     # Function to check if guild has been set up in DB
