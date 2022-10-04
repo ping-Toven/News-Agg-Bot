@@ -7,30 +7,30 @@ from discord import Client, TextChannel
 
 
 def start(loop, db: SQLITE_DB, client):
-    """_summary_
+    """Start the async loop that will be checking for updates in RSS feeds
 
     Args:
-        loop (_type_): _description_
+        loop (itertools loop): _description_
         db (SQLITE_DB): _description_
-        client (_type_): _description_
+        client (aiohttp client): _description_
     """
     update_feeds(loop, db, client)
 
 
 def schedule_update(loop, db: SQLITE_DB, client):
-    """_summary_
+    """Triggers the next loop cycle in 5 minutes
 
     Args:
-        loop (_type_): _description_
+        loop (itertools loop): _description_
         db (SQLITE_DB): _description_
-        client (_type_): _description_
+        client (aiohttp client): _description_
     """
     loop.call_later(5*60, update_feeds, loop, db, client)
     print("Scheduled the next feed update")
 
 
 def update_feeds(loop, db: SQLITE_DB, client):
-    """_summary_
+    """Starts the timed loop cycle and creates the task
 
     Args:
         loop (_type_): _description_
@@ -41,11 +41,12 @@ def update_feeds(loop, db: SQLITE_DB, client):
     loop.create_task(do_feed_update(db, client))
 
 
-async def do_feed_update(db: SQLITE_DB,):
+async def do_feed_update(db: SQLITE_DB, client):
     """_summary_
 
     Args:
         db (SQLITE_DB): _description_
+        :param client:
     """
     print("Doing feed update")
     for guild_id, feeds in db.list_feeds(db, conn):
