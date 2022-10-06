@@ -8,11 +8,6 @@ import sqlite3
 table_RSS_Feeds = "RSS_Feeds_Channels"
 db = sqlite_db.SQLITE_DB
 conn = db.get_connection(db)
-sql_create_RSS_Feeds_table = "CREATE TABLE IF NOT EXISTS RSS_Feeds_Channels (guild string, channel string, " \
-                                "source string); "
-if conn is not None:
-    db.create_table(db, conn, sql_create_RSS_Feeds_table)
-
 
 class RSS_Cog(commands.Cog):
     def __init__(self, client) -> None:
@@ -89,13 +84,17 @@ class RSS_Cog(commands.Cog):
             else:
                 channel_id = str(db.get_posting_channel(db, conn, guild_id, table_RSS_Feeds))
                 channel_mention = "<#" + channel_id + ">"
-                feed_list = ''
-                for gid, feeds in db.list_feeds(db, conn, table_RSS_Feeds):
-                    gid, feeds = str(gid), str(feeds)
-                    if gid == guild_id:
-                        if feeds == "None":
-                            continue
-                        feed_list += "\n> - " + feeds
+                db_feed_list = db.list_guild_feeds(db, conn, table_RSS_Feeds, guild_id)
+                i, feed_list = 0, ''
+                while i < len(db_feed_list):
+                    feeds = db_feed_list[i]
+                    feeds = str(feeds)
+                    feeds = feeds.strip("(),'")
+                    if feeds == "None":
+                        i += 1
+                        continue
+                    feed_list += "\n> - " + feeds
+                    i += 1
                 if feed_list == '':
                     await ctx.respond("Please make sure to add a feed with /rss-add")
                     return

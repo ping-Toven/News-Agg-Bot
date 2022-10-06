@@ -3,6 +3,7 @@ import os
 import discord
 from dotenv import load_dotenv
 import sqlite_db
+import asyncio
 
 load_dotenv()
 # set up logging module for pycord
@@ -36,7 +37,7 @@ async def on_disconnect():
 
 
 # Slash command template
-@newsAggBot.slash_command(name="hello", description="Say hello to the bot")
+@newsAggBot.slash_command(name="hello", description="Say hello to the bot. Ping Test")
 async def hello(ctx):
     """_summary_
 
@@ -54,6 +55,7 @@ def main():
         newsAggBot.load_extension(extension)
         print("Cogs Loaded")
     newsAggBot.run(os.getenv('TOKEN'))
+    loop = asyncio.get_running_loop()
 
 
 if __name__ == '__main__':

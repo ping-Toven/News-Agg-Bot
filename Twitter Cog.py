@@ -9,11 +9,6 @@ table_twitter_discord = "Twitter_Usernames_Channels"
 table_twitter_uid = "Twitter_UID_Map"
 db = sqlite_db.SQLITE_DB
 conn = db.get_connection(db)
-sql_create_twitter_list_table = r"CREATE TABLE IF NOT EXISTS Twitter_Usernames_Channels (guild string, channel " \
-                                r"string, source string); "
-
-if conn is not None:
-    db.create_table(db, conn, sql_create_twitter_list_table)
 
 
 class Twitter_Cog(commands.Cog):
@@ -57,7 +52,7 @@ class Twitter_Cog(commands.Cog):
         channel_id = str(db.get_posting_channel(db, conn, guild_id, table_twitter_discord))
         channel_mention = "<#" + channel_id + ">"
         status = db.remove_feed(db, conn, username, guild_id, table_twitter_discord)
-        await ctx.respond(status + f" in {channel_mention}")
+        await ctx.respond("Twitter", status,  f" in {channel_mention}")
 
     # Setup channel for Twitter feed command
     @slash_command(name="twitter-setup", description="Set up the bot's Twitter feeds by selecting a channel to post in")
@@ -92,19 +87,22 @@ class Twitter_Cog(commands.Cog):
             else:
                 channel_id = str(db.get_posting_channel(db, conn, guild_id, table_twitter_discord))
                 channel_mention = "<#" + channel_id + ">"
-                feed_list = ''
-                for gid, feeds in db.list_feeds(db, conn, table_twitter_discord):
-                    gid, feeds = str(gid), str(feeds)
-                    if gid == guild_id:
-                        if feeds == "None":
-                            continue
-                        feed_list += "\n> -<https://twitter.com/" + feeds + ">"
+                db_feed_list = db.list_guild_feeds(db, conn, table_twitter_discord, guild_id)
+                i, feed_list = 0, ''
+                while i < len(db_feed_list):
+                    feeds = db_feed_list[i]
+                    feeds = str(feeds)
+                    feeds = feeds.strip("(),'")
+                    if feeds == "None":
+                        i += 1
+                        continue
+                    feed_list += "\n> - " + feeds
+                    i += 1
                 if feed_list == '':
                     await ctx.respond("Please make sure to add a feed with /twitter-add")
                     return
                 await ctx.respond(
                     f"{guild}'s Twitter Feed channel is set to {channel_mention}\n{guild}'s Twitter Feeds are: {feed_list}")
-
         except sqlite3.Error as error:
             print("info command error: ", error)
             await ctx.respond("Please make sure to run the /twitter-setup command")

@@ -149,6 +149,18 @@ class SQLITE_DB:
         cursor.execute("SELECT guild, source FROM {}".format(table))
         feed_list = cursor.fetchall()
         return feed_list
+    
+    def list_guild_feeds(self, conn: sqlite3.Connection, table: str, guild: str):
+        """ Fetch all guild:feeds in a list from a single table
+        :param table: table name from which to pull
+        :param conn: sqlite3 connection object
+        :param guild: guild id to fetch feeds for
+        :return feed_list: returns a list of all the feeds
+        """
+        cursor = conn.cursor()
+        cursor.execute("SELECT source FROM {} WHERE guild = {}".format(table, guild))
+        feed_list = cursor.fetchall()
+        return feed_list
 
     def add_username_uid(self, conn: sqlite3.Connection, table: str, username: str, uid: str):
         """ update the twitter username : uid map as needed
