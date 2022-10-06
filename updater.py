@@ -1,12 +1,17 @@
+from email.feedparser import FeedParser
 from sqlite_db import SQLITE_DB
-from aiohttp import ClientSession
+import feedparser
 import asyncio
 import itertools
+import sqlite_db
 from typing import Any
 from discord import Client, TextChannel
 
+db = sqlite_db.SQLITE_DB
+conn = db.get_connection()
 
-def start(loop, db: SQLITE_DB, client):
+
+def start(loop, client):
     """Start the async loop that will be checking for updates in RSS feeds
 
     Args:
@@ -14,10 +19,10 @@ def start(loop, db: SQLITE_DB, client):
         db (SQLITE_DB): _description_
         client (aiohttp client): _description_
     """
-    update_feeds(loop, db, client)
+    update_feeds(loop, client)
 
 
-def schedule_update(loop, db: SQLITE_DB, client):
+def schedule_update(loop, client):
     """Triggers the next loop cycle in 5 minutes
 
     Args:
@@ -25,11 +30,11 @@ def schedule_update(loop, db: SQLITE_DB, client):
         db (SQLITE_DB): _description_
         client (aiohttp client): _description_
     """
-    loop.call_later(5*60, update_feeds, loop, db, client)
+    loop.call_later(5*60, update_feeds, loop, client)
     print("Scheduled the next feed update")
 
 
-def update_feeds(loop, db: SQLITE_DB, client):
+def update_feeds(loop, client):
     """Starts the timed loop cycle and creates the task
 
     Args:
@@ -37,24 +42,51 @@ def update_feeds(loop, db: SQLITE_DB, client):
         db (SQLITE_DB): _description_
         client (_type_): _description_
     """
-    schedule_update(loop, db, client)
-    loop.create_task(do_feed_update(db, client))
+    schedule_update(loop, client)
+    loop.create_task(do_rss_update(client))
+    loop.create_task(do_twitter_update(client))
 
 
-async def do_feed_update(db: SQLITE_DB, client):
+async def do_rss_update(client):
     """_summary_
 
     Args:
         db (SQLITE_DB): _description_
         :param client:
     """
-    print("Doing feed update")
-    for guild_id, feeds in db.list_feeds(db, conn):
-        print(f"Updating feeds for guild ID {guild_id}")
-        await do_guild_feed_updates(guild_id, feeds, db, client)
+    print("Doing RSS feeds update")
+    raw_lists = list(map(list, zip(*db.list_feeds(db, conn, "RSS_Feeds_Channels"))))
+    guilds = raw_lists[0]
+    guild = guilds[0]
+    i = 0
+    while i < len(guilds):
+        guild_feeds = db.list_guild_feeds(db, conn, "RSS_Feeds_Channels", guilds[i])
+        await do_guild_feed_updates(guilds[i], guild_feeds, client)
+        while guild == guilds[i]:
+            i += 1
+        guild = guilds[i]
+        
+async def do_twitter_update(client):
+    """_summary_
+
+    Args:
+        db (SQLITE_DB): _description_
+        :param client:
+    """
+    print("Doing Twitter feeds update")
+    raw_lists = list(map(list, zip(*db.list_feeds(db, conn, "Twitter_Usernames_Channels"))))
+    guilds = raw_lists[0]
+    guild = guilds[0]
+    i = 0
+    while i < len(guilds):
+        guild_twitters = db.list_guild_feeds(db, conn, "Twitter_Usernames_Channels", guilds[i])
+        await do_guild_feed_updates(guilds[i], guild_twitters, client)
+        while guild == guilds[i]:
+            i += 1
+        guild = guilds[i]
 
 
-async def do_guild_feed_updates(guild_id: str, feeds: list[str], db: SQLITE_DB, client):
+async def do_guild_feed_updates(guild_id: str, feeds: list[str], client):
     """_summary_
 
     Args:
@@ -63,10 +95,12 @@ async def do_guild_feed_updates(guild_id: str, feeds: list[str], db: SQLITE_DB, 
         db (SQLITE_DB): _description_
         client (_type_): _description_
     """
-    await asyncio.gather(*[update_feed(guild_id, feed_url, db, client) for feed_url in feeds])
+    for feed_url in feeds:
+        feed_url = feed_url.strip("(),'")
+        await asyncio.gather(*[update_feed(guild_id, feed_url, client)])
 
 
-async def update_feed(guild_id: str, feed_url: str, db: SQLITE_DB, client):
+async def update_feed(guild_id: str, feed_url: str, client):
     """_summary_
 
     Args:
@@ -90,7 +124,7 @@ async def update_feed(guild_id: str, feed_url: str, db: SQLITE_DB, client):
             save_new_guid(current_guid, guild_id, feed_url, db)
 
 
-async def handle_new_item(item: dict, guild_id: str, db: SQLITE_DB, client):
+async def handle_new_item(item: dict, guild_id: str, client):
     """_summary_
 
     Args:
@@ -99,24 +133,22 @@ async def handle_new_item(item: dict, guild_id: str, db: SQLITE_DB, client):
         db (SQLITE_DB): _description_
         client (_type_): _description_
     """
-    channel = get_guild_feed_update_channel(db, guild_id, client)
+    channel = get_guild_feed_update_channel(guild_id, client)
     if channel:
         await channel.send(f"**New Episode**\n{item['title']}\n{item['link']}")
 
 
-async def get_latest_feed(feed_url: str) -> list[dict[str, Any]]:
+async def get_latest_feed(feed_url: str):
     """_summary_
 
     Args:
         feed_url (str): _description_
 
     Returns:
-        list[dict[str, Any]]: _description_
+        feed_data: feedparser obj
     """
-    async with ClientSession() as session:
-        async with session.get(feed_url) as response:
-            print(f"Loaded {feed_url}")
-            return xmltodict.parse(await response.content.read())["rss"]["channel"].get("item", [])
+    feed_data = feedparser.parse(feed_url)
+    return feed_data
 
 
 def get_new_items_from_feed(feed_data: list[dict], last_seen_guid: str) -> list[dict]:
@@ -137,7 +169,7 @@ def get_new_items_from_feed(feed_data: list[dict], last_seen_guid: str) -> list[
     return items
 
 
-def get_guild_feed_update_channel(db: SQLITE_DB, guild_id: str, client: Client) -> TextChannel:
+def get_guild_feed_update_channel(guild_id: str, client: Client) -> TextChannel:
     """_summary_
 
     Args:
@@ -153,7 +185,7 @@ def get_guild_feed_update_channel(db: SQLITE_DB, guild_id: str, client: Client) 
         return client.get_channel(channel_id)
 
 
-def get_last_seen_item_guid(guild_id: str, feed_url: str, db: SQLITE_DB) -> str | None:
+def get_last_seen_item_guid(guild_id: str, feed_url: str) -> str | None:
     """_summary_
 
     Args:
@@ -170,7 +202,7 @@ def get_last_seen_item_guid(guild_id: str, feed_url: str, db: SQLITE_DB) -> str 
     return guid
 
 
-def save_new_guid(new_guid: str, guild_id: str, feed_url: str, db: SQLITE_DB):
+def save_new_guid(new_guid: str, guild_id: str, feed_url: str):
     """_summary_
 
     Args:

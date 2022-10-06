@@ -16,6 +16,7 @@ logger.addHandler(handler)
 newsAggBot = discord.Bot()
 # init SQLite DB Connections
 db = sqlite_db.SQLITE_DB
+conn = db.get_connection(db)
 # registering cog names
 Cog_Files = ['RSS Cog', 'Twitter Cog']
 
@@ -44,7 +45,7 @@ async def hello(ctx):
     Args:
         ctx (_type_): _description_
     """
-    await ctx.respond("Hey!")
+    await ctx.respond("Hello!")
 
 
 # run on startup - create tables, check connections, run bot token
